@@ -1,20 +1,49 @@
+import ctypes
+import subprocess
 import sys
 from pathlib import Path
+
 import torch
-from torch.utils.cpp_extension import load
+
+
+NVCC = "/usr/local/cuda/bin/nvcc"
 
 
 def compile_cuda(src):
-    print("Compiling CUDA kernel using PyTorch JIT...")
+    so_path = src.parent / "kernel.so"
 
-    module = load(
-        name="leetgpu_kernel",
-        sources=[str(src)],
-        verbose=True,
-        extra_cuda_cflags=["-O3"],
-    )
+    cmd = [
+        NVCC,
+        "-O3",
+        "--shared",
+        "-Xcompiler",
+        "-fPIC",
+        str(src),
+        "-o",
+        str(so_path),
+    ]
 
-    return module
+    print("Compiling CUDA kernel...")
+    subprocess.check_call(cmd)
+
+    return so_path
+
+
+def load_kernel(lib_path, signature):
+    lib = ctypes.CDLL(str(lib_path))
+    solve = lib.solve
+
+    argtypes = []
+    for _, (ctype, _) in signature.items():
+        argtypes.append(ctype)
+
+    solve.argtypes = argtypes
+
+    return solve
+
+
+def tensor_ptr(t):
+    return ctypes.cast(t.data_ptr(), ctypes.POINTER(ctypes.c_float))
 
 
 def build_args(test, signature):
@@ -24,7 +53,7 @@ def build_args(test, signature):
         value = test[name]
 
         if isinstance(value, torch.Tensor):
-            args.append(value.data_ptr())   # raw GPU pointer
+            args.append(tensor_ptr(value))
         else:
             args.append(value)
 
@@ -35,7 +64,10 @@ def run_tests(challenge_dir):
 
     repo_root = challenge_dir.parents[2]
 
+    # allow "from core.challenge_base import ..."
     sys.path.append(str(repo_root / "challenges"))
+
+    # allow importing challenge.py
     sys.path.append(str(challenge_dir))
 
     from challenge import Challenge
@@ -46,9 +78,9 @@ def run_tests(challenge_dir):
 
     cuda_file = challenge_dir / "starter" / "starter.cu"
 
-    module = compile_cuda(cuda_file)
+    lib_path = compile_cuda(cuda_file)
 
-    solve = module.solve
+    solve = load_kernel(lib_path, signature)
 
     tests = challenge.generate_functional_test()
 
@@ -56,7 +88,6 @@ def run_tests(challenge_dir):
 
     for i, test in enumerate(tests):
 
-        # clone tensors for reference
         ref_test = {
             k: (v.clone() if isinstance(v, torch.Tensor) else v)
             for k, v in test.items()
