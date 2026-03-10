@@ -1,66 +1,40 @@
-import ctypes
-import subprocess
 import sys
 from pathlib import Path
-
 import torch
+from torch.utils.cpp_extension import load
 
 
 def compile_cuda(src):
-    so_path = src.parent / "kernel.so"
+    print("Compiling CUDA kernel using PyTorch JIT...")
 
-    cmd = [
-        "nvcc",
-        "-O3",
-        "--shared",
-        "-Xcompiler",
-        "-fPIC",
-        str(src),
-        "-o",
-        str(so_path),
-    ]
+    module = load(
+        name="leetgpu_kernel",
+        sources=[str(src)],
+        verbose=True,
+        extra_cuda_cflags=["-O3"],
+    )
 
-    print("Compiling CUDA kernel...")
-    subprocess.check_call(cmd)
-
-    return so_path
-
-
-def load_kernel(lib_path, signature):
-    lib = ctypes.CDLL(str(lib_path))
-    solve = lib.solve
-
-    argtypes = []
-    for _, (ctype, _) in signature.items():
-        argtypes.append(ctype)
-
-    solve.argtypes = argtypes
-
-    return solve
-
-
-def tensor_ptr(t):
-    return ctypes.cast(t.data_ptr(), ctypes.POINTER(ctypes.c_float))
+    return module
 
 
 def build_args(test, signature):
     args = []
 
     for name, (_, _) in signature.items():
+        value = test[name]
 
-        val = test[name]
-
-        if isinstance(val, torch.Tensor):
-            args.append(tensor_ptr(val))
+        if isinstance(value, torch.Tensor):
+            args.append(value.data_ptr())   # raw GPU pointer
         else:
-            args.append(val)
+            args.append(value)
 
     return args
 
 
 def run_tests(challenge_dir):
 
-    repo_root = challenge_dir.parents[2]     # leetgpu-challenges
+    repo_root = challenge_dir.parents[2]
+
     sys.path.append(str(repo_root / "challenges"))
     sys.path.append(str(challenge_dir))
 
@@ -72,9 +46,9 @@ def run_tests(challenge_dir):
 
     cuda_file = challenge_dir / "starter" / "starter.cu"
 
-    lib_path = compile_cuda(cuda_file)
+    module = compile_cuda(cuda_file)
 
-    solve = load_kernel(lib_path, signature)
+    solve = module.solve
 
     tests = challenge.generate_functional_test()
 
@@ -119,7 +93,5 @@ def run_tests(challenge_dir):
 
 
 if __name__ == "__main__":
-
     challenge_dir = Path(sys.argv[1])
-
     run_tests(challenge_dir)
