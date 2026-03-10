@@ -1,6 +1,13 @@
 #include <cuda_runtime.h>
 
-__global__ void matrix_transpose_kernel(const float* input, float* output, int rows, int cols) {}
+__global__ void matrix_transpose_kernel(const float* input, float* output, int rows, int cols) {
+    int col =blockIdx.x*blockDim.x + threadIdx.x;
+    int row = blockIdx.y*blockDim.y + threadIdx.y;
+
+    if (col < cols && row < rows){
+        output[col*rows + row] = input[row*cols + col];
+    }
+}
 
 // input, output are device pointers (i.e. pointers to memory on the GPU)
 extern "C" void solve(const float* input, float* output, int rows, int cols) {
