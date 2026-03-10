@@ -6,7 +6,7 @@ __global__ void matrix_multiplication_kernel(const float* A, const float* B, flo
         int idy = blockDim.y*blockIdx.y + threadIdx.y;
         if (idy < M && idx < K)
         {
-            C[idy*M + idx] = 0;
+            C[idy*K + idx] = 0;
             for (int i = 0;i<N;i++){
                     C[idy*K + idx] += A[idy*N + i]*B[i*K + idx];
             }
