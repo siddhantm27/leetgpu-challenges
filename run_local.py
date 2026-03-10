@@ -118,7 +118,28 @@ def run_tests(challenge_dir):
             print(f"Test {i}: PASS")
             passed += 1
         else:
-            print(f"Test {i}: FAIL")
+            print(f"\n❌ Test {i}: FAIL")
+
+            # print tensor shapes
+            for k, v in test.items():
+                if isinstance(v, torch.Tensor):
+                    print(f"{k}.shape =", tuple(v.shape))
+
+            # print max error
+            for name, (_, direction) in signature.items():
+                if direction == "out":
+                    diff = (test[name] - ref_test[name]).abs()
+                    print("Max error:", diff.max().item())
+
+                    # print tensors only if small
+                    if test[name].numel() < 20:
+                        print("\nExpected:")
+                        print(ref_test[name])
+
+                        print("\nGot:")
+                        print(test[name])
+
+            break
 
     print(f"\nPassed {passed}/{len(tests)} tests")
 
