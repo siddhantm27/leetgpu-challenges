@@ -60,6 +60,8 @@ def build_args(test, signature):
 
 def run_tests(challenge_dir):
 
+    repo_root = challenge_dir.parents[2]     # leetgpu-challenges
+    sys.path.append(str(repo_root / "challenges"))
     sys.path.append(str(challenge_dir))
 
     from challenge import Challenge
