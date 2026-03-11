@@ -43,7 +43,12 @@ def load_kernel(lib_path, signature):
 
 
 def tensor_ptr(t):
-    return ctypes.cast(t.data_ptr(), ctypes.POINTER(ctypes.c_float))
+    if t.dtype == torch.uint8:
+        return ctypes.cast(t.data_ptr(), ctypes.POINTER(ctypes.c_ubyte))
+    elif t.dtype == torch.float32:
+        return ctypes.cast(t.data_ptr(), ctypes.POINTER(ctypes.c_float))
+    else:
+        raise TypeError("Unsupported tensor dtype")
 
 
 def build_args(test, signature):
