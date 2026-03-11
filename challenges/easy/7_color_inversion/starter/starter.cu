@@ -6,8 +6,8 @@ __global__ void invert_kernel(unsigned char* image, int width, int height) {
     int row = blockDim.y*blockIdx.y + threadIdx.y;
 
     if (row < height && col < width){
-        // image[row*width + col] = 255.0 - image[row*width + col];
-        std::cout<<image[row*width + col];
+        image[row*width + col] = 255 - image[row*width + col];
+        
     }
 }
 // image_input, image_output are device pointers (i.e. pointers to memory on the GPU)
