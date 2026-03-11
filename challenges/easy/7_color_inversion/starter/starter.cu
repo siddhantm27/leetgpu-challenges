@@ -5,8 +5,8 @@ __global__ void invert_kernel(unsigned char* image, int width, int height) {
     int col = blockDim.x*blockIdx.x + threadIdx.x;
     int row = blockDim.y*blockIdx.y + threadIdx.y;
 
-    if (row < height && col < width){
-        image[row*width + col] = 255 - image[row*width + col];
+    if (row < height && col < width && (row*width + col) % 4 != 3){
+        image[row*width + col] = 255 - int(image[row*width + col]);
         
     }
 }
